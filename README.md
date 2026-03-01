@@ -1,50 +1,39 @@
-# Welcome to your Expo app 👋
+# Intruder Threat Map
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> Consensus intruder tracking — crowd-sourced, AI-powered, real-time.
 
-## Get started
+A mobile app that helps people stay safe during active intruder situations by sharing live location pins, AI-generated suspect profiles, and a one-tap 911 assist.
 
-1. Install dependencies
+> **Demo note:** A stapler is classified as a weapon for demo purposes.
 
-   ```bash
-   npm install
-   ```
+## What it does
 
-2. Start the app
+1. **Photograph** the intruder via the camera tab
+2. **AI profiles** the suspect — Google Gemini detects weapons and describes appearance (clothing, hair, build, gender)
+3. **Pin the location** — long-press the map to mark where the intruder was last seen; pins fade so the newest sighting is always clearest
+4. **Call it in** — tap "Call Police" to have the suspect profile read aloud hands-free to 911
 
-   ```bash
-   npx expo start
-   ```
+The map syncs in real time across all users so everyone sees the same picture.
 
-In the output, you'll find options to open the app in a
+## Tech stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- React Native + Expo (iOS & Android)
+- Google Gemini `gemini-3.1-flash-image-preview` — vision AI
+- Supabase — Postgres, real-time subscriptions, photo storage
+- Google Maps via `react-native-maps`
+- `expo-location`, `expo-speech`, `expo-camera`
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Setup
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Requires environment variables:
+```
+EXPO_PUBLIC_GEMINI_API_KEY=...
+EXPO_PUBLIC_SUPABASE_URL=...
+EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+GOOGLE_MAPS_API_KEY=...
+```
