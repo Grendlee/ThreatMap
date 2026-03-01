@@ -31,12 +31,19 @@ export default function CameraScreen() {
   const takePhoto = async () => {
     if (!cameraRef.current) return;
 
-    const photoResult = await (cameraRef.current as any).takePictureAsync();
+    // const photoResult = await (cameraRef.current as any).takePictureAsync();
+    const photoResult = await (cameraRef.current as any).takePictureAsync({
+      quality: 0.2,
+      base64: false,
+    });
     setPhoto(photoResult.uri);
     setSaveError(null);
 
     if (locationPermission) {
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
+      // Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest }).then((loc) => {
+      // Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low  }).then((loc) => {
+      // Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }).then((loc) => {
         setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       });
     }
@@ -55,9 +62,16 @@ export default function CameraScreen() {
     try {
       const fileName = `threat-${Date.now()}.jpg`;
 
-      const base64 = await FileSystem.readAsStringAsync(photo, {
-        encoding: 'base64',
-      });
+      let base64 = '';
+      for (let attempt = 0; attempt < 2; attempt++) {
+        base64 = await FileSystem.readAsStringAsync(photo, { encoding: 'base64' });
+        if (base64 && base64.length > 0) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      if (!base64 || base64.length === 0) {
+        throw new Error('Could not read photo after multiple attempts');
+      }
+
       const binary = atob(base64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) {
