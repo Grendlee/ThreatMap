@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { analyzePhotoForThreat } from '../../lib/gemini';
 import { supabase } from '../../lib/supabase';
 
 export default function CameraScreen() {
@@ -30,20 +31,14 @@ export default function CameraScreen() {
 
   const takePhoto = async () => {
     if (!cameraRef.current) return;
-
-    // const photoResult = await (cameraRef.current as any).takePictureAsync();
     const photoResult = await (cameraRef.current as any).takePictureAsync({
       quality: 0.2,
-      base64: false,
     });
     setPhoto(photoResult.uri);
     setSaveError(null);
 
     if (locationPermission) {
-      // Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest }).then((loc) => {
-      // Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low  }).then((loc) => {
-      // Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }).then((loc) => {
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).then((loc) => {
         setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       });
     }
@@ -68,29 +63,39 @@ export default function CameraScreen() {
         if (base64 && base64.length > 0) break;
         await new Promise((r) => setTimeout(r, 100));
       }
-      if (!base64 || base64.length === 0) {
-        throw new Error('Could not read photo after multiple attempts');
-      }
+      if (!base64 || base64.length === 0) throw new Error('Could not read photo');
 
       const binary = atob(base64);
       const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
       const { error: storageError } = await supabase.storage
         .from('ThreatPhoto')
         .upload(fileName, bytes, { contentType: 'image/jpeg' });
-
       if (storageError) throw storageError;
 
-      const { error: dbError } = await supabase.from('threat_photos').insert({
-        file_path: fileName,
-        latitude: location?.latitude ?? null,
-        longitude: location?.longitude ?? null,
-      });
-
+      const { data: dbData, error: dbError } = await supabase
+        .from('threat_photos')
+        .insert({
+          file_path: fileName,
+          latitude: location?.latitude ?? null,
+          longitude: location?.longitude ?? null,
+        })
+        .select('id')
+        .single();
       if (dbError) throw dbError;
+
+      // Analyze in background — don't block the UI
+      const rowId = dbData.id;
+      analyzePhotoForThreat(base64).then(async (analysis) => {
+        const { error } = await supabase.from('threat_photos').update({
+          is_threat: analysis.isThreat,
+          ai_description: analysis.description,
+          appearance: analysis.appearance,
+          has_clear_view: analysis.hasClearView,
+        }).eq('id', rowId);
+        if (error) console.warn('Gemini update failed:', error.message);
+      }).catch((err) => console.warn('Gemini analysis failed:', err.message));
 
       setPhoto(null);
       setLocation(null);
@@ -125,23 +130,11 @@ export default function CameraScreen() {
         )}
         {saveError && <Text style={styles.errorText}>{saveError}</Text>}
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.retakeButton]}
-            onPress={retake}
-            disabled={saving}
-          >
+          <TouchableOpacity style={[styles.actionButton, styles.retakeButton]} onPress={retake} disabled={saving}>
             <Text style={styles.actionText}>Try Again</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.saveButton]}
-            onPress={savePhoto}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={[styles.actionText, { color: 'white' }]}>Save</Text>
-            )}
+          <TouchableOpacity style={[styles.actionButton, styles.saveButton]} onPress={savePhoto} disabled={saving}>
+            {saving ? <ActivityIndicator color="white" /> : <Text style={[styles.actionText, { color: 'white' }]}>Save</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -150,7 +143,7 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing="back" ref={cameraRef} />
+      <CameraView style={styles.camera} facing="front" mirror={true} ref={cameraRef} />
       <TouchableOpacity style={styles.shutterButton} onPress={takePhoto}>
         <Text style={styles.shutterText}>Take Photo</Text>
       </TouchableOpacity>
@@ -170,14 +163,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
   },
-  shutterText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'black',
-  },
-  preview: {
-    flex: 1,
-  },
+  shutterText: { fontSize: 16, fontWeight: '600', color: 'black' },
+  preview: { flex: 1 },
   locationBadge: {
     position: 'absolute',
     top: 16,
@@ -187,16 +174,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  locationText: {
-    color: 'white',
-    fontSize: 13,
-  },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    paddingVertical: 8,
-    backgroundColor: 'black',
-  },
+  locationText: { color: 'white', fontSize: 13 },
+  errorText: { color: 'red', textAlign: 'center', paddingVertical: 8, backgroundColor: 'black' },
   actionRow: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
@@ -210,15 +189,7 @@ const styles = StyleSheet.create({
     minWidth: 130,
     alignItems: 'center',
   },
-  retakeButton: {
-    backgroundColor: '#333',
-  },
-  saveButton: {
-    backgroundColor: '#2563eb',
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
+  retakeButton: { backgroundColor: '#333' },
+  saveButton: { backgroundColor: '#2563eb' },
+  actionText: { fontSize: 16, fontWeight: '600', color: 'white' },
 });

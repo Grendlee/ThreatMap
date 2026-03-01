@@ -9,14 +9,15 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.ThreatMap"
     },
-    "android": {                                                                                                        
-      "config": {                                                                                                                                       
-        "googleMaps": {                                                                                                                                 
-          "apiKey": "$GOOGLE_MAPS_API_KEY"     
-        }                                                                                                                 
-      }, 
+    "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "$GOOGLE_MAPS_API_KEY"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
