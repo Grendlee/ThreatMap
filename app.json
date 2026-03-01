@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ThreatMap2",
-    "slug": "ThreatMap2",
+    "name": "ThreatMap",
+    "slug": "ThreatMap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -11,7 +11,12 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
+    "android": {                                                                                                        
+      "config": {                                                                                                                                       
+        "googleMaps": {                                                                                                                                 
+          "apiKey": "AIzaSyAF3rvjGacso8IpUoIaX5wyh9eJgglvcLg"     
+        }                                                                                                                 
+      }, 
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
