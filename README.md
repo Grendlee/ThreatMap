@@ -23,14 +23,22 @@ The map syncs in real time across all users so everyone sees the same picture.
 - Google Maps via `react-native-maps`
 - `expo-location`, `expo-speech`, `expo-camera`
 
-## Setup
+## Run it on your phone
 
-```bash
-npm install
-npx expo start
-```
+1. Download **Expo Go** from the [App Store](https://apps.apple.com/app/expo-go/id982107779) or [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)
+2. Clone the repo and install dependencies:
+   ```bash
+   git clone https://github.com/your-username/ThreatMap.git
+   cd ThreatMap
+   npm install
+   ```
+3. Start the dev server:
+   ```bash
+   npx expo start
+   ```
+4. Scan the QR code shown in the terminal with your phone camera (iOS) or the Expo Go app (Android)
 
-Requires environment variables:
+Requires environment variables in a `.env` file:
 ```
 EXPO_PUBLIC_GEMINI_API_KEY=...
 EXPO_PUBLIC_SUPABASE_URL=...
