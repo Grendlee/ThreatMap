@@ -110,7 +110,7 @@ export default function CameraScreen() {
 
   if (!permission.granted) {
     return (
-      <View style={[styles.container, { backgroundColor: 'white' }]}>
+      <View style={[styles.container, { backgroundColor: 'white', justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={{ color: 'black' }}>Camera permission required</Text>
         <Button title="Grant Permission" onPress={requestPermission} />
       </View>

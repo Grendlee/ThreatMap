@@ -19,9 +19,19 @@ const CARD_HEIGHT = 200;
 function BulletLines({ text, style }: { text: string; style: any }) {
   return (
     <>
-      {text.split('\n').filter(Boolean).map((line, i) => (
-        <Text key={i} style={style}>• {line.replace(/^[-•]\s*/, '').trim()}</Text>
-      ))}
+      {text.split('\n').filter(Boolean).map((line, i) => {
+        const clean = line.replace(/^[-•]\s*/, '').trim();
+        const parts = `• ${clean}`.split(/\*\*(.*?)\*\*/g);
+        return (
+          <Text key={i} style={style}>
+            {parts.map((part, j) =>
+              j % 2 === 1
+                ? <Text key={j} style={{ fontWeight: 'bold', color: '#ff6b6b' }}>{part}</Text>
+                : part
+            )}
+          </Text>
+        );
+      })}
     </>
   );
 }
@@ -158,5 +168,5 @@ const styles = StyleSheet.create({
   clearBadge: { backgroundColor: '#1a5c2a' },
   badgeText: { color: 'white', fontSize: 12, fontWeight: '600' },
   description: { color: '#ccc', fontSize: 12 },
-  appearance: { color: '#aaa', fontSize: 12, fontStyle: 'italic' },
+  appearance: { color: '#ccc', fontSize: 12, fontStyle: 'italic' },
 });

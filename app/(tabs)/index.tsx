@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import * as Speech from 'expo-speech';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import * as Speech from 'expo-speech';
 import MapView, { Callout, Marker } from 'react-native-maps';
 import { supabase } from '../../lib/supabase';
 
@@ -11,6 +11,19 @@ type Pin = { key: string; id: string; latitude: number; longitude: number; devic
 type PhotoPin = { id: string; latitude: number; longitude: number; file_path: string };
 
 const BUCKET_URL = 'https://zvoigorhaijuyqtbbyrl.supabase.co/storage/v1/object/public/ThreatPhoto';
+
+function BoldLine({ text, style }: { text: string; style: any }) {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  return (
+    <Text style={style}>
+      {parts.map((part, i) =>
+        i % 2 === 1
+          ? <Text key={i} style={{ fontWeight: 'bold', color: '#ff6b6b' }}>{part}</Text>
+          : part
+      )}
+    </Text>
+  );
+}
 
 const MIN_OPACITY = 0.05;
 const MAX_OPACITY = 1.0;
@@ -173,30 +186,47 @@ export default function HomeScreen() {
   const loadSuspectProfile = async () => {
     const { data } = await supabase
       .from('threat_photos')
-      .select('appearance, file_path, has_clear_view')
+      .select('appearance, file_path, has_clear_view, ai_description, latitude, longitude')
       .eq('is_threat', true)
       .not('appearance', 'is', null)
-      .order('has_clear_view', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false });
-    if (data && data.length > 0) {
-      // Best photo: prefer has_clear_view = true, otherwise most recent
-      setSuspectPhotoUrl(`${BUCKET_URL}/${data[0].file_path}`);
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (!data || data.length === 0) return;
 
-      const seen = new Set<string>();
-      const lines: string[] = [];
-      for (const { appearance } of data) {
-        if (!appearance || lines.length >= 10) break;
-        for (const line of appearance.split('\n').filter(Boolean)) {
-          const clean = line.replace(/^[-•]\s*/, '').trim().toLowerCase();
-          if (!seen.has(clean)) {
-            seen.add(clean);
-            lines.push(line.replace(/^[-•]\s*/, '').trim());
-            if (lines.length >= 10) break;
-          }
-        }
-      }
-      setSuspectLines(lines);
+    setSuspectPhotoUrl(`${BUCKET_URL}/${data[0].file_path}`);
+
+    const lines: string[] = [];
+
+    // 1. Weapon — use first bullet from ai_description (already has action + bolded weapon)
+    const firstBullet = data[0].ai_description
+      ?.split('\n')
+      .filter(Boolean)
+      .find((l) => l.match(/\*\*(.*?)\*\*/));
+    if (firstBullet) {
+      lines.push(firstBullet.replace(/^[-•]\s*/, '').trim());
     }
+
+    // 2. Location — reverse geocode, bold the address
+    const located = data.find((p) => p.latitude && p.longitude);
+    if (located) {
+      try {
+        const [geo] = await Location.reverseGeocodeAsync({
+          latitude: located.latitude!,
+          longitude: located.longitude!,
+        });
+        const address = [geo.streetNumber, geo.street, geo.city].filter(Boolean).join(' ');
+        if (address) lines.push(`Last seen near: **${address}**`);
+      } catch (_) {}
+    }
+
+    // 3. Appearance — from the latest threat photo only
+    const appearance = data[0].appearance ?? '';
+    for (const line of appearance.split('\n').filter(Boolean)) {
+      lines.push(line.replace(/^[-•]\s*/, '').trim());
+      if (lines.length >= 10) break;
+    }
+
+    setSuspectLines(lines);
   };
 
   const loadPhotoPins = async () => {
@@ -287,7 +317,7 @@ export default function HomeScreen() {
       </MapView>
       {hintVisible && (
         <TouchableOpacity style={styles.hint} onPress={() => setHintVisible(false)} activeOpacity={0.8}>
-          <Text style={styles.hintText}>📍 Long press to pin the threats location</Text>
+          <Text style={styles.hintText}>📍 Long press to pin the suspects location</Text>
           <Text style={styles.hintDismiss}>✕</Text>
         </TouchableOpacity>
       )}
@@ -301,7 +331,7 @@ export default function HomeScreen() {
             <View style={styles.suspectText}>
               <View style={!profileExpanded && { height: 60, overflow: 'hidden' }}>
                 {suspectLines.map((line, i) => (
-                  <Text key={i} style={styles.suspectEntry}>• {line}</Text>
+                  <BoldLine key={i} text={`• ${line}`} style={styles.suspectEntry} />
                 ))}
               </View>
               <TouchableOpacity onPress={() => setProfileExpanded((v) => !v)}>
@@ -326,7 +356,7 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   hint: {
     position: 'absolute',
-    bottom: 36,
+    top: '45%',
     left: 20,
     right: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
@@ -340,6 +370,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 13,
     flex: 1,
+    textAlign: 'center',
   },
   hintDismiss: {
     color: '#aaa',
