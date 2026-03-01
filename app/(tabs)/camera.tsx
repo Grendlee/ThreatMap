@@ -22,6 +22,7 @@ export default function CameraScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [facing, setFacing] = useState<'front' | 'back'>('front');
 
   useEffect(() => {
     Location.requestForegroundPermissionsAsync().then(({ status }) => {
@@ -143,7 +144,10 @@ export default function CameraScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing="front" mirror={true} ref={cameraRef} />
+      <CameraView style={styles.camera} facing={facing} mirror={facing === 'front'} ref={cameraRef} />
+      <TouchableOpacity style={styles.flipButton} onPress={() => setFacing((f) => f === 'front' ? 'back' : 'front')}>
+        <Text style={styles.flipText}>⟳</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.shutterButton} onPress={takePhoto}>
         <Text style={styles.shutterText}>Take Photo</Text>
       </TouchableOpacity>
@@ -154,6 +158,21 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'black' },
   camera: { flex: 1 },
+  flipButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flipText: {
+    color: 'white',
+    fontSize: 24,
+  },
   shutterButton: {
     position: 'absolute',
     bottom: 40,
